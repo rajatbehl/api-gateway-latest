@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: API Gateway
+          
+
+server:
+  port: 8090
+
+endpoints:
+   url:
+     raf: http://localhost:8080
+     communication: http://localhost:8881

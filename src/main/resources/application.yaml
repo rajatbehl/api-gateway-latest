@@ -1,20 +1,6 @@
 spring:
   application:
     name: API-Gateway
-  cloud:
-    gateway:
-      routes:
-      - id : raf
-        uri : http://localhost:8080
-        predicates:
-        - Path=/raf/**
-        filters:
-        - RewritePath=/raf(?<segment>/?.*), $\{segment}
-    consul:
-      host: localhost
-      port: 8500
-      config:
-        enabled: true
   redis:
     cluster:
       nodes:
@@ -28,8 +14,14 @@ spring:
 server:
   port: 8090
   
-
 logging:
   level:
      org.springframework.cloud.gateway: DEBUG
      reactor.netty.http.client: DEBUG
+     
+consul:
+   url: http://localhost:8500
+   path: API-Gateway/
+   
+routing-path:
+   prefix: services

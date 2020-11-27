@@ -10,6 +10,7 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
+import com.google.gson.Gson;
 import com.jungleegames.apigateway.redis.dao.RedisDao;
 
 import reactor.core.publisher.Mono;
@@ -19,6 +20,8 @@ public class PreGatewayFilter implements GlobalFilter{
 
 	@Autowired
 	private RedisDao redisDao;
+	
+	private Gson gson = new Gson();
 
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -44,4 +47,5 @@ public class PreGatewayFilter implements GlobalFilter{
 		
 		return chain.filter(exchange);
 	}
+	
 }

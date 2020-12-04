@@ -17,6 +17,7 @@ public class RedisDaoImpl implements RedisDao {
 	@Autowired
 	private RedisConfig redisConfig;
 	private RedisAdvancedClusterCommands<String, String> commands;
+	private static final String SUCCESSFUL_REPLY = "OK";
 	
 	@PostConstruct
 	public void init() {
@@ -27,6 +28,12 @@ public class RedisDaoImpl implements RedisDao {
 	public String get(String key) {
 		log.info("going to fetch value for key : " + key);
 		return commands.get(key);
+	}
+	
+	@Override
+	public boolean store(String key, String value, long expireTimeInSeconds) {
+		log.info("going to store key {} with value {}", key, value);
+		return SUCCESSFUL_REPLY.equals(commands.set(key, value)) && commands.expire(key, expireTimeInSeconds);
 	}
 
 }

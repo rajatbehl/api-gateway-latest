@@ -25,3 +25,20 @@ consul:
    
 routing-path:
    prefix: services
+
+#management:
+#  metrics:
+#    export:
+#      newrelic:
+#        api-key: cffe26fd22af853c03a3cf9edb015fc5FFFFNRAL
+#        account-id: 1422919
+#        step: 5s
+
+amazon :
+    s3 :
+     endpoint : https://jwr-pub-keys-nonprod.s3.ap-south-1.amazonaws.com
+
+jwt-auth :
+      expiration-time : 30 #in days
+      enabled : true #added to disabled it for local testing
+      

@@ -4,16 +4,16 @@ import java.util.Set;
 
 import org.springframework.cloud.gateway.route.RouteDefinition;
 
-import com.jungleegames.apigateway.config.ConsulConfigStore;
+import com.jungleegames.apigateway.config.ConsulConfig;
 
 public interface RoutingService {
 
 	/**
 	 * This method be responsible to initialize routes
 	 * when service came up.
-	 * @param consulConfigStore
+	 * @param consulConfig
 	 */
-	public void intializeRoutes(ConsulConfigStore consulConfigStore);
+	public void intializeRoutes(ConsulConfig consulConfig);
 	
 	/**
 	 * This method will add new route.

@@ -7,7 +7,7 @@ import lombok.Data;
 
 @Configuration
 @Data
-public class Config {
+public class GatewayConfig {
 
 	@Value("${consul.url}")
 	private String consulURL;
@@ -17,4 +17,13 @@ public class Config {
 	
 	@Value("${routing-path.prefix}")
 	private String routingPathPrefix;
+	
+	@Value("${amazon.s3.endpoint}")
+	private String amazonS3Endpoint;
+	
+	@Value("${jwt-auth.expiration-time}")
+	private int jwtExpirationTime;
+	
+	@Value("${jwt-auth.enabled}")
+	private boolean jwtAuthEnabled;
 }

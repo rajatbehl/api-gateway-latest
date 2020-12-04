@@ -24,8 +24,8 @@ key : /API-Gateway/services/raf/route
 
 value :
 {
-    "id": "raf
-    "uri": "http://raf.jungleerummy.com
+    "id": "raf",
+    "uri": "http://localhost:8080",
     "predicates": [
         {
             "name": "Path",
@@ -36,10 +36,15 @@ value :
     ],
     "filters": [
         {
-            "name": "RewritePath",
+            "name": "StripPrefix",
             "args": {
-                "regexp": "/raf(?<segment>/?.*)",
-                "replacement" : "$\\{segment}"
+                "parts": 1
+            }
+        },
+        {
+            "name": "Authentication",
+            "args": {
+                "roles": "jwr-player"
             }
         }
     ]
@@ -61,6 +66,34 @@ API-Gateway service will also support centralized tracing. Suppose if a client r
 
 * [Setup Redis Cluster](https://medium.com/@iamvishalkhare/create-a-redis-cluster-faa89c5a6bb4)
 * Setup [Consul in developer mode](https://learn.hashicorp.com/tutorials/consul/get-started-install) for running locally.
+* Once Consul is installed and running locally, configure below key/value pairs
+key : /API-Gateway/spring.redis.cluster.nodes, value : 127.0.0.1:6001,127.0.0.1:6002,127.0.0.1:6003,127.0.0.1:6004,127.0.0.1:6005,127.0.0.1:6006
+* Create /API-Gateway/services folder in consul, this is the location where api-gateway search for the routes for services. It is not mandatory to define. For example route for RAF service can be defined as
+
+key : /API-Gateway/services/raf/route
+
+value :
+{
+    "id": "raf
+    "uri": "http://raf.jungleerummy.com
+    "predicates": [
+        {
+            "name": "Path",
+            "args": {
+                "regexp": "/raf/**"
+            }
+        }
+    ],
+    "filters": [
+        {
+            "name": "RewritePath",
+            "args": {
+                "regexp": "/raf(?<segment>/?.*)",
+                "replacement" : "$\\{segment}"
+            }
+        }
+    ]
+} 
 
 
 ### Who do I talk to? ###

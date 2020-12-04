@@ -2,7 +2,6 @@ package com.jungleegames.apigateway.config;
 
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,7 +10,7 @@ import javax.annotation.PreDestroy;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.route.RouteDefinition;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Configuration;
 
 import com.google.gson.Gson;
 import com.jungleegames.apigateway.service.RoutingService;
@@ -24,13 +23,13 @@ import com.orbitz.consul.model.kv.Value;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-@Component(value = "ConsulConfigStore")
+@Configuration
 @Getter
 @Slf4j
-public class ConsulConfigStore {
+public class ConsulConfig {
 
 	@Autowired
-	private Config config;
+	private GatewayConfig config;
 	
 	@Autowired
 	private RoutingService routingService;
@@ -42,7 +41,7 @@ public class ConsulConfigStore {
 	 * will get updated if there is some updates in consul.
 	 */
 	private Map<String, String> configs = new ConcurrentHashMap<>();
-	private Gson gson = new Gson().newBuilder().setPrettyPrinting().create();
+	private Gson gson = new Gson();
 
 	@PostConstruct
 	public void init() {

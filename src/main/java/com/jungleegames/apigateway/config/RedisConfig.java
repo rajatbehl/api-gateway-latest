@@ -27,7 +27,7 @@ public class RedisConfig {
 	private StatefulRedisClusterConnection<String, String> connection;
 	
 	@Autowired
-	private ConsulConfigStore configStore;
+	private ConsulConfig configStore;
 	
 	@PostConstruct
 	public void init() {

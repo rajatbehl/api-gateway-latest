@@ -6,7 +6,7 @@ import java.util.List;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 import com.jungleegames.apigateway.exceptions.ConfigurationMissingException;
@@ -20,23 +20,21 @@ import lombok.extern.slf4j.Slf4j;
 
 @Data
 @Slf4j
+@ConfigurationProperties(value = "spring.redis.cluster")
 @Configuration
 public class RedisConfig {
 
 	private RedisClusterClient clusterClient;
 	private StatefulRedisClusterConnection<String, String> connection;
 	
-	@Autowired
-	private ConsulConfig configStore;
+	private List<String> nodes;
 	
 	@PostConstruct
 	public void init() {
-		String configuredNodes = configStore.getString("spring.redis.cluster.nodes");
-		log.info("received nodes : " + configuredNodes);
-		if(configuredNodes == null) 
+		log.info("received nodes : " + nodes);
+		if(nodes == null || nodes.isEmpty()) 
 			throw new ConfigurationMissingException("Redis Nodes not configured");
 		
-		String[] nodes = configuredNodes.split(",");
 		HostAndPort hostAndPort = null;
 		RedisURI redisURI = null;
 		

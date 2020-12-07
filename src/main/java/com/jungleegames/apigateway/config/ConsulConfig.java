@@ -40,7 +40,7 @@ public class ConsulConfig {
 	 * This map will hold the key-value mapping stored in consul and 
 	 * will get updated if there is some updates in consul.
 	 */
-	private Map<String, String> configs = new ConcurrentHashMap<>();
+	private Map<String, Object> configs = new ConcurrentHashMap<>();
 	private Gson gson = new Gson();
 
 	@PostConstruct
@@ -54,13 +54,37 @@ public class ConsulConfig {
 		routingService.intializeRoutes(this);
 	}	
 	
-	public String getString(String key) {
-		String value = configs.get(key);
+	public String getString(String key, String defaultValue) {
+		Object value = configs.get(key);
 		if(value == null) {
-			value = keyValueClient.getValueAsString(config.getConsulPath().concat(key)).get();
-			configs.put(key, value);
+			configs.put(key, defaultValue);
 		}
-		return configs.get(key);
+		return String.valueOf(configs.get(key));
+	}
+	
+	public long getLong(String key, long defauleValue) {
+		Object temp = configs.get(key);
+		if(temp == null) {
+			configs.put(key, defauleValue);
+		}
+		
+		long value = 0;
+		try {
+			value = Long.parseLong(String.valueOf(configs.get(key)));
+		}catch(NumberFormatException ex) {
+			log.error("invalid long value : " + value);
+		}
+		
+		return value;
+	}
+
+	public boolean getBoolean(String key, boolean defaultValue) {
+		Object temp = configs.get(key);
+		if(temp == null) {
+			configs.put(key, defaultValue);
+		}
+		
+		return Boolean.valueOf(String.valueOf(configs.get(key)));
 	}
 	
 	@PreDestroy
@@ -94,5 +118,5 @@ public class ConsulConfig {
 			routingService.updateRoutes(currentlyRegisteredRoutes);
 		};
 	}
-
+	
 }

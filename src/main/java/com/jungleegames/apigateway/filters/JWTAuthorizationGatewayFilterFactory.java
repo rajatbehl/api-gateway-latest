@@ -14,6 +14,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
+import com.jungleegames.apigateway.config.ConsulConfig;
 import com.jungleegames.apigateway.config.GatewayConfig;
 import com.jungleegames.apigateway.model.AuthorizationResult;
 import com.jungleegames.apigateway.service.AuthorizationService;
@@ -62,6 +63,9 @@ public class JWTAuthorizationGatewayFilterFactory implements GatewayFilterFactor
 	@Autowired
 	private GatewayConfig gatewayConfig;
 	
+	@Autowired
+	private ConsulConfig consulConfig;
+	
 	private static final String JWT_PAYLOAD = "JWT-Payload";
 	@Override
 	public Class<Config> getConfigClass() {
@@ -76,7 +80,7 @@ public class JWTAuthorizationGatewayFilterFactory implements GatewayFilterFactor
 			@Override
 			public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 				ServerHttpRequest request = exchange.getRequest();
-				if(!gatewayConfig.isJwtAuthEnabled()) {
+				if(!consulConfig.getBoolean("jwt-auth.enabled", gatewayConfig.isJwtAuthEnabled())) {
 					log.warn("JWT authorization is disabled currently.");
 					return chain.filter(exchange);
 				}

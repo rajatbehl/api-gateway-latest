@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.jungleegames.apigateway.config.ConsulConfig;
 import com.jungleegames.apigateway.config.GatewayConfig;
 import com.jungleegames.apigateway.model.AuthorizationResult;
 import com.jungleegames.apigateway.redis.dao.RedisDao;
@@ -40,6 +41,9 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 	
 	@Autowired
 	private GatewayConfig config;
+	
+	@Autowired
+	private ConsulConfig consulConfig;
 	
 	private Gson gson = new Gson();
 	
@@ -125,7 +129,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 			if(publicKey == null) {
 				publicKey = publicKeyAccessService.get(keyId);
 				if(publicKey != null) {
-					redisDao.store(keyId, publicKey, TimeUnit.DAYS.toSeconds(config.getJwtExpirationTime()));
+					redisDao.store(keyId, publicKey, TimeUnit.DAYS.toSeconds(consulConfig.getLong("jwt-auth.expiration-time", config.getJwtExpirationTime())));
 				}
 			}
 			return publicKey;

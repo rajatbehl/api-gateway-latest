@@ -10,6 +10,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
+import com.jungleegames.apigateway.config.ConsulConfig;
 import com.jungleegames.apigateway.config.GatewayConfig;
 
 import lombok.extern.slf4j.Slf4j;
@@ -24,10 +25,14 @@ public class PublicKeyS3AccessService implements PublicKeyAccessService {
 	@Autowired
 	private ResourceLoader resourceLoader;
 	
+	@Autowired
+	private ConsulConfig consulConfig;
+	
 	@Override
 	public String get(String kid) {
 		String publicKey = null;
-		Resource resource = resourceLoader.getResource(config.getAmazonS3Endpoint() + "/" + kid);
+		String amzaonS3EndPoint = consulConfig.getString("amazon.s3.endpoint", config.getAmazonS3Endpoint());
+		Resource resource = resourceLoader.getResource(amzaonS3EndPoint + "/" + kid);
 		try(InputStream inputStream = resource.getInputStream()) {
 			publicKey = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
 			log.info("received public key {} for kid {}", publicKey, kid);

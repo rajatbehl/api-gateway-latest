@@ -26,4 +26,5 @@ public class GatewayConfig {
 	
 	@Value("${jwt-auth.enabled}")
 	private boolean jwtAuthEnabled;
+	
 }

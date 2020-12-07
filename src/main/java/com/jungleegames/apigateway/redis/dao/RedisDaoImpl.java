@@ -32,7 +32,7 @@ public class RedisDaoImpl implements RedisDao {
 	
 	@Override
 	public boolean store(String key, String value, long expireTimeInSeconds) {
-		log.info("going to store key {} with value {}", key, value);
+		log.info("going to store key {} with value {} and expirationTime {}", key, value, expireTimeInSeconds);
 		return SUCCESSFUL_REPLY.equals(commands.set(key, value)) && commands.expire(key, expireTimeInSeconds);
 	}
 

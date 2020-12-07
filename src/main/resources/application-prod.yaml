@@ -1,15 +1,6 @@
 spring:
   application:
     name: API-Gateway
-  redis:
-    cluster:
-      nodes:
-      - 127.0.0.1:6001
-      - 127.0.0.1:6002
-      - 127.0.0.1:6003
-      - 127.0.0.1:6004
-      - 127.0.0.1:6005
-      - 127.0.0.1:6006
       
 server:
   port: 8090

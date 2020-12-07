@@ -2,8 +2,10 @@ package com.jungleegames.apigateway.service;
 
 import java.security.Key;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
 import org.jose4j.jwk.PublicJsonWebKey;
 import org.jose4j.jws.AlgorithmIdentifiers;
@@ -25,7 +27,6 @@ import com.google.gson.Gson;
 import com.jungleegames.apigateway.config.ConsulConfig;
 import com.jungleegames.apigateway.config.GatewayConfig;
 import com.jungleegames.apigateway.model.AuthorizationResult;
-import com.jungleegames.apigateway.redis.dao.RedisDao;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,15 +38,20 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 	private PublicKeyAccessService publicKeyAccessService;
 	
 	@Autowired
-	private RedisDao redisDao;
-	
-	@Autowired
 	private GatewayConfig config;
 	
 	@Autowired
 	private ConsulConfig consulConfig;
 	
 	private Gson gson = new Gson();
+	
+	/**
+	 * This map will be used to store public key(which will be downloaded
+	 * from s3) corresponding to kid received as a header in jwt,
+	 * These public keys will be purged after a fixed interval to
+	 * avoid any hacks these keys will be rotated also at main/auth server side.
+	 */
+	private Map<String, String> publicKeys = new PassiveExpiringMap<>(30, TimeUnit.DAYS);
 	
 	@Override
 	public AuthorizationResult authorize(String authToken, List<String> accessRoles) {
@@ -125,16 +131,32 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 		}
 
 		private String getPublicKey(String keyId) {
-			String publicKey = redisDao.get(keyId);
+			String publicKey = publicKeys.get(keyId);
 			if(publicKey == null) {
+				log.info("loading it from s3");
 				publicKey = publicKeyAccessService.get(keyId);
 				if(publicKey != null) {
-					redisDao.store(keyId, publicKey, TimeUnit.DAYS.toSeconds(consulConfig.getLong("jwt-auth.expiration-time", config.getJwtExpirationTime())));
+					publicKeys.put(keyId, publicKey);
 				}
 			}
 			return publicKey;
 		}
 	}
 	
+	public static void main(String[] args) {
+		System.out.println("putting..");
+		PassiveExpiringMap<String, String> map = new PassiveExpiringMap<>(1, TimeUnit.MINUTES);
+		map.put("abc", "def");
+		
+		try {
+			TimeUnit.MINUTES.sleep(1);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		System.out.println("value " + map.get("abc"));
+		
+	}
 
 }

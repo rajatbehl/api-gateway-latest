@@ -32,5 +32,5 @@ amazon :
 
 jwt-auth :
       expiration-time : 30 #in days
-      enabled : true #added to disabled it for local testing
+      disabled : false #added to disabled it for local testing
       

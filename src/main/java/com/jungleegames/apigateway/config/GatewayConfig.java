@@ -24,7 +24,7 @@ public class GatewayConfig {
 	@Value("${jwt-auth.expiration-time}")
 	private int jwtExpirationTime;
 	
-	@Value("${jwt-auth.enabled}")
-	private boolean jwtAuthEnabled;
+	@Value("${jwt-auth.disabled}")
+	private boolean jwtAuthDisabled;
 	
 }

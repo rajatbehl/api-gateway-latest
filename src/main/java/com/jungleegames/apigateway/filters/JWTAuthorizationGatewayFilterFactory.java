@@ -2,25 +2,26 @@ package com.jungleegames.apigateway.filters;
 
 import static org.springframework.cloud.gateway.support.GatewayToStringStyler.filterToStringCreator;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.factory.GatewayFilterFactory;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
-import com.jungleegames.apigateway.config.ConsulConfig;
-import com.jungleegames.apigateway.config.GatewayConfig;
+import com.google.gson.Gson;
 import com.jungleegames.apigateway.model.AuthorizationResult;
 import com.jungleegames.apigateway.service.AuthorizationService;
 
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -54,19 +55,14 @@ import reactor.core.publisher.Mono;
  *
  */
 @Component
-@Slf4j
 public class JWTAuthorizationGatewayFilterFactory implements GatewayFilterFactory<JWTAuthorizationGatewayFilterFactory.Config>{
 
 	@Autowired
 	private AuthorizationService authenticationService;
 	
-	@Autowired
-	private GatewayConfig gatewayConfig;
-	
-	@Autowired
-	private ConsulConfig consulConfig;
-	
+	private Gson gson = new Gson();
 	private static final String JWT_PAYLOAD = "JWT-Payload";
+	
 	@Override
 	public Class<Config> getConfigClass() {
 		return JWTAuthorizationGatewayFilterFactory.Config.class;
@@ -80,22 +76,21 @@ public class JWTAuthorizationGatewayFilterFactory implements GatewayFilterFactor
 			@Override
 			public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 				ServerHttpRequest request = exchange.getRequest();
-				if(!consulConfig.getBoolean("jwt-auth.enabled", gatewayConfig.isJwtAuthEnabled())) {
-					log.warn("JWT authorization is disabled currently.");
-					return chain.filter(exchange);
-				}
-				
-				AuthorizationResult authenticationResult = authenticationService.authorize(request.getHeaders()
+				Mono<AuthorizationResult> authorizationResult = authenticationService.authorize(request.getHeaders()
 						.getFirst(HttpHeaders.AUTHORIZATION), config.getAccessRoles());
-				if(!authenticationResult.isValid()) {
-					exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-					return Mono.empty();
-				}
 				
-				ServerHttpRequest modifiedRequest = request.mutate().header(JWT_PAYLOAD, authenticationResult.getPayload()).build();
-				return chain.filter(exchange.mutate().request(modifiedRequest).build());
+				return authorizationResult.flatMap(result -> {
+					if(Boolean.TRUE.equals(result.isValid())) {
+						ServerHttpRequest modifiedRequest = request.mutate().header(JWT_PAYLOAD, result.getPayload()).build();
+						return chain.filter(exchange.mutate().request(modifiedRequest).build());
+					}else {
+						exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+						byte[] response = gson.toJson(result).getBytes(StandardCharsets.UTF_8);
+						DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(response);
+					    return exchange.getResponse().writeWith(Flux.just(buffer));
+					}
+				});
 			}
-
 
 			@Override
 			public String toString() {

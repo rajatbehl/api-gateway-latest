@@ -5,6 +5,8 @@ import java.util.List;
 import com.jungleegames.apigateway.filters.JWTAuthorizationGatewayFilterFactory;
 import com.jungleegames.apigateway.model.AuthorizationResult;
 
+import reactor.core.publisher.Mono;
+
 public interface AuthorizationService {
 	
 	/**
@@ -14,5 +16,5 @@ public interface AuthorizationService {
 	 * @param accessRoles
 	 * @return {@link AuthorizationResult}
 	 */
-	AuthorizationResult authorize(String authToken, List<String> accessRoles);
+	Mono<AuthorizationResult> authorize(String authHeader, List<String> accessRoles);
 }

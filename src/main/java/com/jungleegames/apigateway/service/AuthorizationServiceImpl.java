@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import javax.annotation.PostConstruct;
+
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
 import org.jose4j.jwk.PublicJsonWebKey;
@@ -25,9 +27,12 @@ import org.springframework.stereotype.Service;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.jungleegames.apigateway.config.GatewayConfig;
 import com.jungleegames.apigateway.model.AuthorizationResult;
+import com.jungleegames.apigateway.model.AuthorizationResult.Result;
 
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Service
 @Slf4j
@@ -36,109 +41,135 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 	@Autowired
 	private PublicKeyAccessService publicKeyAccessService;
 	
+	@Autowired
+	private GatewayConfig config;
+
 	private static final Pattern UUID_PATTERN = Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
 	private Gson gson = new Gson();
-	
+	private JwtConsumer jwtConsumer = null;
+
 	/**
 	 * This map will be used to store public key(which will be downloaded
 	 * from s3) corresponding to kid received as a header in jwt,
 	 * These public keys will be purged after a fixed interval to
 	 * avoid any hacks, these keys will be rotated also at main/auth server side.
 	 */
-	private Map<String, String> publicKeys = new PassiveExpiringMap<>(30, TimeUnit.DAYS);
+	private Map<String, PublicJsonWebKey> publicKeys = null;
 	
-	@Override
-	public AuthorizationResult authorize(String authToken, List<String> accessRoles) {
-		
-		if(Strings.isNullOrEmpty(authToken)) {
-			log.error("Authorization header missing");
-			return new AuthorizationResult(false);
-		}
-		
-		String[] tokenArray = authToken.split("Bearer ");
-		
-		if(tokenArray == null || tokenArray.length != 2) {
-			log.error("Invalid auth token");
-			return new AuthorizationResult(false);
-		}
-		
-		authToken = tokenArray[1];
-		JwtConsumer jwtConsumer = new JwtConsumerBuilder()
+	@PostConstruct
+	public void init() {
+		JwtConsumerBuilder builder = new JwtConsumerBuilder()
 				.setRequireExpirationTime()
 				.setJwsAlgorithmConstraints(ConstraintType.PERMIT, AlgorithmIdentifiers.RSA_USING_SHA256)
-				.setVerificationKeyResolver(new CustomVerificationKeyResolver())
-				.build();
+				.setVerificationKeyResolver(new CustomVerificationKeyResolver());
+				
+		if(config.isJwtAuthDisabled()) {
+			builder.setSkipSignatureVerification();
+		}
 		
+		jwtConsumer = builder.build();
+		publicKeys = new PassiveExpiringMap<>(30, TimeUnit.DAYS);
+	}
+
+	@Override
+	public Mono<AuthorizationResult> authorize(String authHeader, List<String> accessRoles) {
+
+		if(Strings.isNullOrEmpty(authHeader) || !authHeader.startsWith("Bearer ")) {
+			log.error("Missing authorization Bearer token");
+			return Mono.just(new AuthorizationResult(Result.TOKEN_MISSING));
+		}
+
+		String authToken = authHeader.split("Bearer ")[1];
+		JsonWebStructure jws = null;
+		try {
+			jws = JsonWebStructure.fromCompactSerialization(authToken);
+		} catch (JoseException ex) {
+			log.error("failed to parse jwt", ex);
+			return Mono.just(new AuthorizationResult(Result.TOKEN_PARSING_FAILED));
+		}	
+		String kid = jws.getKeyIdHeaderValue();
+		if(kid == null) {
+			log.error("KID header value is missing");
+			return Mono.just(new AuthorizationResult(Result.KID_HEADER_MISSING));
+		}
+		
+		if(!UUID_PATTERN.matcher(kid).matches()) {
+			log.error("Invalid KID {}, it must be a valid UUID", kid);
+			return Mono.just(new AuthorizationResult(Result.INVALID_TOKEN_KID));
+		}
+		
+		if(config.isJwtAuthDisabled()) {
+			return processJWTClaims(authToken, accessRoles); 
+		}else {
+			return refreshPublicKeys(kid)
+					.flatMap(publicKey -> {
+						return processJWTClaims(authToken, accessRoles);
+					}).switchIfEmpty(Mono.defer(() -> {
+						log.error("Public key not found for kid {}", kid);
+						return Mono.just(new AuthorizationResult(Result.PUBLIC_KEY_NOT_FOUND));
+					}));
+		}
+
+	}
+
+	private Mono<AuthorizationResult> processJWTClaims(String authToken, List<String> accessRoles) {
 		JwtClaims jwtClaims = null;
 		try {
 			jwtClaims = jwtConsumer.processToClaims(authToken);
 			log.info("JWT validation succeeded! " + jwtClaims);
-			
 		}catch(InvalidJwtException ex) {
 			log.error("Invalid JWT! " + ex, ex);
-			
+			AuthorizationResult result = new AuthorizationResult(Result.INVALID_TOKEN);
 			if(ex.hasExpired()) {
 				try {
 					log.info("JWT expired at " + ex.getJwtContext().getJwtClaims().getExpirationTime());
 				} catch (MalformedClaimException e) {
 					log.error("error occured while fetching expiration time for jwt", e);
 				}
+				result.setResult(Result.TOKEN_EXPIRED);
 			}
-			
-			return new AuthorizationResult(false);
+
+			return Mono.just(result);
 		}
+
 		String requestAccessRole = jwtClaims.getClaimValueAsString("role");
 		if(accessRoles != null && !accessRoles.contains(requestAccessRole)) {
 			log.error("Illegal access role {}, allowed access roles are {}",requestAccessRole, accessRoles);
-			return new AuthorizationResult(false);
+			return Mono.just(new AuthorizationResult(Result.ILLEGAL_ACCESS_ROLE));
 		}
-		
+
 		AuthorizationResult result = new AuthorizationResult(true);
 		result.setPayload(gson.toJson(jwtClaims.getClaimsMap()));
-		return result;
+		return Mono.just(result);
 	}
-	
+
+	private Mono<Key> refreshPublicKeys(String kid) {
+		if(!publicKeys.containsKey(kid)) {
+			log.info("loading public key from s3 for kid {}", kid);
+			return publicKeyAccessService.get(kid)
+					.flatMap(publicKey -> {
+						try {
+							PublicJsonWebKey publicJsonWebKey = PublicJsonWebKey.Factory.newPublicJwk(publicKey);
+							publicKeys.put(kid, publicJsonWebKey);
+							return Mono.just(publicJsonWebKey.getKey());
+						} catch (JoseException e) {
+							return Mono.empty();
+						}
+					});
+		}
+		return Mono.just(publicKeys.get(kid).getKey());
+	}
+
 	class CustomVerificationKeyResolver implements VerificationKeyResolver {
-		
+
 		@Override
 		public Key resolveKey(JsonWebSignature jws, List<JsonWebStructure> nestingContext) 
 				throws UnresolvableKeyException {
-			
-			String keyId = jws.getKeyIdHeaderValue();
-			if(keyId == null) {
-				log.error("KID header value is missing");
-				return null;
-			}
-			
 			PublicJsonWebKey publicJsonWebKey = null;
-			String publicKey = getPublicKey(keyId);
-			if(publicKey == null) {
-				log.error("public key not found for kid {}", keyId);
-				return null;
-			}
-			try {
-				publicJsonWebKey = PublicJsonWebKey.Factory.newPublicJwk(publicKey);
-			} catch (JoseException e) {
-				log.error("error occured while creating public key from kid value : " + keyId, e);
-			}
+			publicJsonWebKey = publicKeys.get(jws.getKeyIdHeaderValue());
 			return publicJsonWebKey == null ? null : publicJsonWebKey.getKey();
 		}
 
-		private String getPublicKey(String keyId) {
-			if(!UUID_PATTERN.matcher(keyId).matches()) {
-				log.error("Invalid KID {}, it must be a valid UUID", keyId);
-				return null;
-			}
-			
-			String publicKey = publicKeys.get(keyId);
-			if(publicKey == null) {
-				publicKey = publicKeyAccessService.get(keyId);
-				if(publicKey != null) {
-					publicKeys.put(keyId, publicKey);
-				}
-			}
-			return publicKey;
-		}
 	}
 
 }

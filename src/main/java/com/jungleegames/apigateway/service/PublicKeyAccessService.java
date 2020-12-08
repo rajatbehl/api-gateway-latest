@@ -1,5 +1,7 @@
 package com.jungleegames.apigateway.service;
 
+import reactor.core.publisher.Mono;
+
 public interface PublicKeyAccessService {
 	
 	/**
@@ -8,5 +10,5 @@ public interface PublicKeyAccessService {
 	 * @param keyId
 	 * @return {@link String} required public key
 	 */
-	String get(String kid);
+	Mono<String> get(String kid);
 }

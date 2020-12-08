@@ -1,19 +1,19 @@
 package com.jungleegames.apigateway.service;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
 
-import org.apache.commons.io.IOUtils;
+import javax.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.jungleegames.apigateway.config.ConsulConfig;
 import com.jungleegames.apigateway.config.GatewayConfig;
 
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Service
 @Slf4j
@@ -23,24 +23,28 @@ public class PublicKeyS3AccessService implements PublicKeyAccessService {
 	private GatewayConfig config;
 	
 	@Autowired
-	private ResourceLoader resourceLoader;
-	
-	@Autowired
 	private ConsulConfig consulConfig;
 	
+	private WebClient webClient;
+	
+	@PostConstruct
+	private void init() {
+		webClient = WebClient.builder().build();
+	}
+	
 	@Override
-	public String get(String kid) {
-		String publicKey = null;
-		String amzaonS3EndPoint = consulConfig.getString("amazon.s3.endpoint", config.getAmazonS3Endpoint());
-		Resource resource = resourceLoader.getResource(amzaonS3EndPoint + "/" + kid);
-		try(InputStream inputStream = resource.getInputStream()) {
-			publicKey = IOUtils.toString(inputStream, StandardCharsets.UTF_8.name());
-			log.info("received public key {} for kid {}", publicKey, kid);
-		} catch (IOException ex) {
-			log.error("error occured while loading public key for kid : " + kid, ex);
-		}
+	public Mono<String> get(String kid) {
+		String amzaonS3EndPoint = consulConfig.getString("amazon.s3.endpoint", config.getAmazonS3Endpoint()) + "/" + kid;
 		
-		return publicKey;
+		return webClient.get().uri(URI.create(amzaonS3EndPoint))
+			.exchangeToMono(response -> {
+				if(response.statusCode().equals(HttpStatus.OK)) {
+					return response.bodyToMono(String.class);
+				}else {
+					log.error("failed to fetch public key received {} status", response.statusCode());
+					return Mono.empty();
+				}
+			});
 	}
 
 }

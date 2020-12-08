@@ -21,6 +21,7 @@ routing-path:
 #  metrics:
 #    export:
 #      newrelic:
+#        enabled: true
 #        api-key: cffe26fd22af853c03a3cf9edb015fc5FFFFNRAL
 #        account-id: 1422919
 #        step: 5s

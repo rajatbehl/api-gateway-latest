@@ -4,6 +4,7 @@ import java.security.Key;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
@@ -24,8 +25,6 @@ import org.springframework.stereotype.Service;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.jungleegames.apigateway.config.ConsulConfig;
-import com.jungleegames.apigateway.config.GatewayConfig;
 import com.jungleegames.apigateway.model.AuthorizationResult;
 
 import lombok.extern.slf4j.Slf4j;
@@ -37,19 +36,14 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 	@Autowired
 	private PublicKeyAccessService publicKeyAccessService;
 	
-	@Autowired
-	private GatewayConfig config;
-	
-	@Autowired
-	private ConsulConfig consulConfig;
-	
+	private static final Pattern UUID_PATTERN = Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
 	private Gson gson = new Gson();
 	
 	/**
 	 * This map will be used to store public key(which will be downloaded
 	 * from s3) corresponding to kid received as a header in jwt,
 	 * These public keys will be purged after a fixed interval to
-	 * avoid any hacks these keys will be rotated also at main/auth server side.
+	 * avoid any hacks, these keys will be rotated also at main/auth server side.
 	 */
 	private Map<String, String> publicKeys = new PassiveExpiringMap<>(30, TimeUnit.DAYS);
 	
@@ -131,9 +125,13 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 		}
 
 		private String getPublicKey(String keyId) {
+			if(!UUID_PATTERN.matcher(keyId).matches()) {
+				log.error("Invalid KID {}, it must be a valid UUID", keyId);
+				return null;
+			}
+			
 			String publicKey = publicKeys.get(keyId);
 			if(publicKey == null) {
-				log.info("loading it from s3");
 				publicKey = publicKeyAccessService.get(keyId);
 				if(publicKey != null) {
 					publicKeys.put(keyId, publicKey);
@@ -141,22 +139,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 			}
 			return publicKey;
 		}
-	}
-	
-	public static void main(String[] args) {
-		System.out.println("putting..");
-		PassiveExpiringMap<String, String> map = new PassiveExpiringMap<>(1, TimeUnit.MINUTES);
-		map.put("abc", "def");
-		
-		try {
-			TimeUnit.MINUTES.sleep(1);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		System.out.println("value " + map.get("abc"));
-		
 	}
 
 }

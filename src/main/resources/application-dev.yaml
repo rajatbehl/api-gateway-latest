@@ -17,14 +17,10 @@ consul:
 routing-path:
    prefix: services
 
-#management:
-#  metrics:
-#    export:
-#      newrelic:
-#        enabled: true
-#        api-key: cffe26fd22af853c03a3cf9edb015fc5FFFFNRAL
-#        account-id: 1422919
-#        step: 5s
+newrelic :
+  api-key: rM7ES1W-gTor6sTD4rR0YBnZ1FxmEEFP
+  uri: https://metric-api.newrelic.com/metric/v1
+  step: 5
 
 amazon :
     s3 :

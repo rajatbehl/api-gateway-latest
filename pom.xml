@@ -61,8 +61,18 @@
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.newrelic.telemetry</groupId>
+			<artifactId>micrometer-registry-new-relic</artifactId>
+			<version>0.5.0</version>
+		</dependency>
 		<!-- <dependency> <groupId>io.micrometer</groupId> <artifactId>micrometer-registry-new-relic</artifactId> 
 			</dependency> -->
+		<dependency>
+			<groupId>com.newrelic.agent.java</groupId>
+			<artifactId>newrelic-api</artifactId>
+			<version>6.2.1</version>
+		</dependency>
 		<dependency>
 			<groupId>org.bitbucket.b_c</groupId>
 			<artifactId>jose4j</artifactId>

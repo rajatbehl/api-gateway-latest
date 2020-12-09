@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.context.annotation.Configuration;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.net.HostAndPort;
 import com.google.gson.Gson;
 import com.jungleegames.apigateway.service.RoutingService;
 import com.orbitz.consul.Consul;
@@ -45,8 +47,12 @@ public class ConsulConfig {
 
 	@PostConstruct
 	public void init() {
-		log.info("initializing consul config store with url {} and path {}",config.getConsulURL(), config.getConsulPath());
-		Consul client = Consul.builder().withUrl(config.getConsulURL()).build();
+		log.info("initializing consul config store with url {} and port {}, token {}",
+				config.getConsulHost(), config.getConsulPort(), config.getConsulToken());
+		
+		Consul client = Consul.builder().withHostAndPort(HostAndPort.fromParts(config.getConsulHost(), config.getConsulPort()))
+				.withAclToken(config.getConsulToken())
+				.build();
 		keyValueClient = client.keyValueClient();
 		cache = KVCache.newCache(keyValueClient, config.getConsulPath());
 		cache.addListener(consulListener());

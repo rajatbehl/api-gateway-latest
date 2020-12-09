@@ -11,8 +11,10 @@ logging:
      reactor.netty.http.client: DEBUG
      
 consul:
-   url: http://localhost:8500
+   host: localhost
+   port: 8500
    path: API-Gateway/
+   token: null
    
 routing-path:
    prefix: services

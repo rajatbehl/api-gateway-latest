@@ -9,11 +9,17 @@ import lombok.Data;
 @Data
 public class GatewayConfig {
 
-	@Value("${consul.url}")
-	private String consulURL;
+	@Value("${consul.host}")
+	private String consulHost;
+	
+	@Value("${consul.port}")
+	private int consulPort;
 	
 	@Value("${consul.path}")
 	private String consulPath;
+	
+	@Value("${consul.token}")
+	private String consulToken;
 	
 	@Value("${routing-path.prefix}")
 	private String routingPathPrefix;

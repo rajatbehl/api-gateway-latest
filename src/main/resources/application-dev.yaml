@@ -11,8 +11,10 @@ logging:
      reactor.netty.http.client: DEBUG
      
 consul:
-   url: http://localhost:8500
-   path: API-Gateway/
+   host: internal-jwr-stage-nomad-server-elb-1707585284.ap-south-1.elb.amazonaws.com
+   port: 8500
+   path: config/API-Gateway/
+   token: b0d45b4a-2139-d336-f2ab-c6b02f8cc420
    
 routing-path:
    prefix: services
